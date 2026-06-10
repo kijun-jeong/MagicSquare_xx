@@ -1,0 +1,51 @@
+# MagicSquare_xx — Cursor Rules (세션 3+)
+
+## 도메인
+
+- 격자: 4×4 정수 배열. `0` = 빈칸, 채운 값은 `1~16`.
+- 마법상수: **34**. 완성 격자에서 **10선** 합이 모두 34여야 한다.
+- 10선 라벨 (검사 순서 고정):
+  - 행: `R1` `R2` `R3` `R4`
+  - 열: `C1` `C2` `C3` `C4`
+  - 대각: `D1`(↘) `D2`(↙)
+- 검사 순서: **행 → 열 → 대각선**. 순서 변경은 회귀 테스트로 막는다.
+- 불일치 시 **첫 위반 1개만** 보고한다. 여러 선을 한꺼번에 나열하지 않는다.
+
+## API (Entity)
+
+```python
+validate_lines(grid) -> {"status": "pass"|"fail"|"incomplete", "failed_lines": [...]}
+```
+
+- `pass`: 빈칸 없음, 10선 합 모두 34.
+- `fail`: 빈칸 없음, 첫 위반 선 1개를 `failed_lines`에 담음 (예: `["D1"]`).
+- `incomplete`: 빈칸(`0`)이 하나라도 있음. `failed_lines`는 `[]`.
+- `failed_lines` 원소는 위 10선 라벨만 사용한다.
+
+## ECB 패턴
+
+| 계층 | 역할 | 이 프로젝트 |
+|:---|:---|:---|
+| **Entity** | 순수 도메인·판정 | `src/validate_lines.py` — 격자만 받고 dict 반환. I/O·UI 없음. |
+| **Command** | 절차·오케스트레이션 | `CHECK_ALL_LINE_SUMS`, `REPORT_FIRST_VIOLATION`, `REVERIFY_AFTER_EDIT` — Entity 호출 순서 고정. |
+| **Boundary** | 입출력·표현 | CLI/UI/파일 — 세션 범위 밖이면 건드리지 않는다. |
+
+- Entity는 외부 상태·전역·print에 의존하지 않는다.
+- Command는 Entity 결과를 조합만 한다. 판정 로직은 Entity에 둔다.
+- Boundary는 Entity/Command를 호출할 뿐, 10선·34 규칙을 중복 구현하지 않는다.
+
+## TDD (RED → GREEN → REFACTOR)
+
+- **RED**: `tests/`만 수정. 실패하는 테스트를 먼저 추가한다. `src/`는 건드리지 않는다.
+- **GREEN**: 테스트를 통과시키는 최소 구현만 `src/`에 쓴다.
+- **REFACTOR**: 동작 유지하며 중복·이름·구조만 정리한다. 테스트는 그대로 통과해야 한다.
+- **금지**: assert 완화, `@pytest.mark.skip`, `xfail`, 테스트 삭제로 RED를 피하는 행위.
+- RED 시나리오 우선: 대각선만 틀린 완성 격자 → 첫 위반 `D1` 또는 `D2`; 검사 순서 변경 시 회귀 실패.
+
+## AI 작업 규칙
+
+- 사용자와 대화·설명·주석은 **한국어**로 한다.
+- TDD 작업 시 응답 **첫 줄**에 Phase를 선언한다: `Phase: RED` / `Phase: GREEN` / `Phase: REFACTOR`.
+- 요청 범위 밖 파일·기능(Solver, UI, ECB 전체 일괄 구현)은 만들지 않는다.
+- **git commit**은 사용자가 명시적으로 요청할 때만 수행한다.
+- 변경은 최소 diff로 한다. 기존 `pyproject.toml`·import 경로·10선 라벨 규약을 따른다.
